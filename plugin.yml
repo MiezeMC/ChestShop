@@ -1,11 +1,14 @@
-name: ChestShop
+name: ChestShop-MMC
 main: ChestShop\ChestShop
 version: 3.0.0
-api: [4.0.0]
+api: 4.0.0
 load: POSTWORLD
-author: MinecrafterJPN
+authors:
+  - MinecrafterJPN
+  - poggit
+  - supercrafter333
 description: A PocketMine-MP plugin which enables you to open a chest shop using a sign
-website: https://github.com/poggit-orphanage/ChestShop
+website: https://github.com/MiezeMC/ChestShop
 depend:
  - EconomyAPI
 extensions:

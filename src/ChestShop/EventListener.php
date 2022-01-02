@@ -20,11 +20,13 @@ class EventListener implements Listener
 {
 	private $plugin;
 	private $databaseManager;
+    private static string $prefix;
 
 	public function __construct(ChestShop $plugin, DatabaseManager $databaseManager)
 	{
 		$this->plugin = $plugin;
 		$this->databaseManager = $databaseManager;
+        self::$prefix = \MiezeMC\Core\MiezeMC::PREFIX . "§7";
 	}
 
 	public function onPlayerInteract(PlayerInteractEvent $event) : void
@@ -44,18 +46,18 @@ class EventListener implements Listener
 				if($shopInfo === false)
 					return;
 				if ($shopInfo['shopOwner'] === $player->getName()) {
-					$player->sendMessage("Cannot purchase from your own shop!");
+					$player->sendMessage(self::$prefix . "§cDu kannst nichts aus deinem eigenen Shop kaufen!");
 					return;
 				}else{
 					$event->cancel();
 				}
 				$buyerMoney = EconomyAPI::getInstance()->myMoney($player->getName());
 				if ($buyerMoney === false) {
-					$player->sendMessage("Couldn't acquire your money data!");
+					$player->sendMessage(self::$prefix . "§4FEHLER! Dein Geld konnte nicht abgerufen werden! §r[Fehlercode: CS-01]");
 					return;
 				}
 				if ($buyerMoney < $shopInfo['price']) {
-					$player->sendMessage("Your money is not enough!");
+					$player->sendMessage(self::$prefix . "Du hast nicht genügend Geld dafür!");
 					return;
 				}
 				/** @var Chest $chest */
@@ -69,9 +71,9 @@ class EventListener implements Listener
 					if ($item->getID() === $pID and $item->getMeta() === $pMeta) $itemNum += $item->getCount();
 				}
 				if ($itemNum < $shopInfo['saleNum']) {
-					$player->sendMessage("This shop is out of stock!");
+					$player->sendMessage(self::$prefix . "Dieser Shop ist leer!");
 					if (($p = $this->plugin->getServer()->getPlayerExact($shopInfo['shopOwner'])) !== null) {
-						$p->sendMessage("Your ChestShop is out of stock! Replenish Item: ".ItemFactory::getInstance()->get($pID, $pMeta)->getName());
+						$p->sendMessage(self::$prefix . "Dein ChestShop ist leer! Aufzufüllendes Item: §e".ItemFactory::getInstance()->get($pID, $pMeta)->getName());
 					}
 					return;
 				}
@@ -81,16 +83,16 @@ class EventListener implements Listener
 				$player->getInventory()->addItem($item);
 				$sellerMoney = EconomyAPI::getInstance()->myMoney($shopInfo['shopOwner']);
 				if(EconomyAPI::getInstance()->reduceMoney($player->getName(), $shopInfo['price'], false, "ChestShop") === EconomyAPI::RET_SUCCESS and EconomyAPI::getInstance()->addMoney($shopInfo['shopOwner'], $shopInfo['price'], false, "ChestShop") === EconomyAPI::RET_SUCCESS) {
-					$player->sendMessage("Completed transaction");
+					$player->sendMessage(self::$prefix . "Erfolgreich gekauft!");
 					if (($p = $this->plugin->getServer()->getPlayerExact($shopInfo['shopOwner'])) !== null) {
-						$p->sendMessage("{$player->getName()} purchased ".ItemFactory::getInstance()->get($pID, $pMeta)->getName()." for ".EconomyAPI::getInstance()->getMonetaryUnit().$shopInfo['price']);
+						$p->sendMessage(self::$prefix . "§e{$player->getName()}§7 hat gerade §e".ItemFactory::getInstance()->get($pID, $pMeta)->getName()."§7 für §e".EconomyAPI::getInstance()->getMonetaryUnit().$shopInfo['price'] . "§7 gekauft!");
 					}
 				}else{
 					$player->getInventory()->removeItem($item);
 					$chest->getInventory()->addItem($item);
 					EconomyAPI::getInstance()->setMoney($player->getName(), $buyerMoney);
 					EconomyAPI::getInstance()->setMoney($shopInfo['shopOwner'], $sellerMoney);
-					$player->sendMessage("Transaction Failed");
+					$player->sendMessage(self::$prefix . "§4FEHLER! Vorgang fehlgeschlagen! §r[Fehlercode: CS-02]");
 				}
 				break;
 
@@ -104,7 +106,7 @@ class EventListener implements Listener
 					break;
 				$shopInfo = $shopInfo->fetchArray(SQLITE3_ASSOC);
 				if ($shopInfo !== false and $shopInfo['shopOwner'] !== $player->getName() and !$player->hasPermission("chestshop.admin")) {
-					$player->sendMessage("This chest has been protected!");
+					$player->sendMessage(self::$prefix . "§cDiese Kiste ist geschützt!");
 					$event->cancel();
 				}
 				break;
@@ -133,11 +135,11 @@ class EventListener implements Listener
 					if($shopInfo === false)
 						break;
 					if ($shopInfo['shopOwner'] !== $player->getName() and !$player->hasPermission("chestshop.admin")) {
-						$player->sendMessage("This sign has been protected!");
+						$player->sendMessage(self::$prefix . "§cDieses Schild ist geschützt!");
 						$event->cancel();
 					} else {
 						$this->databaseManager->deleteByCondition($condition);
-						$player->sendMessage("Closed your ChestShop");
+						$player->sendMessage(self::$prefix . "ChestShop erfolgreich abgebaut!");
 					}
 				}
 				break;
@@ -154,11 +156,11 @@ class EventListener implements Listener
 					if($shopInfo === false)
 						break;
 					if ($shopInfo['shopOwner'] !== $player->getName() and !$player->hasPermission("chestshop.admin")) {
-						$player->sendMessage("This chest has been protected!");
+						$player->sendMessage(self::$prefix . "§cDiese Kiste ist geschützt!");
 						$event->cancel();
 					} else {
 						$this->databaseManager->deleteByCondition($condition);
-						$player->sendMessage("Closed your ChestShop");
+						$player->sendMessage(self::$prefix . "ChestShop erfolgreich abgebaut!");
 					}
 				}
 				break;
@@ -194,10 +196,10 @@ class EventListener implements Listener
 				if($res["signX"] === $event->getBlock()->getPosition()->getX() and $res["signY"] === $event->getBlock()->getPosition()->getY() and $res["signZ"] === $event->getBlock()->getPosition()->getZ()) {
 					$productName = ItemFactory::getInstance()->get($pID, $pMeta)->getName();
 					$event->setNewText(new SignText([
-						$shopOwner,
-						"Amount: $saleNum",
-						"Price: ".EconomyAPI::getInstance()->getMonetaryUnit().$price,
-						$productName
+						"§6" . $shopOwner,
+						"§7[§8Anzahl: §b" . $saleNum . "§7]",
+						"§7[§8Preis: §b".EconomyAPI::getInstance()->getMonetaryUnit().$price . "§7]",
+						"§e" . $productName
 					]));
 
 					$this->databaseManager->registerShop($shopOwner, $saleNum, $price, $pID, $pMeta, $sign, $chest);
@@ -207,16 +209,16 @@ class EventListener implements Listener
 		}
 		if(empty($signText->getLine(3))) return;
 		if(count($count) >= $this->plugin->getMaxPlayerShops($event->getPlayer()) and !$event->getPlayer()->hasPermission("chestshop.admin")) {
-			$event->getPlayer()->sendMessage(TextFormat::RED."You don't have permission to make more shops");
+			$event->getPlayer()->sendMessage(self::$prefix . "§cDu bist dazu nicht berechtigt!");
 			return;
 		}
 
 		$productName = ItemFactory::getInstance()->get($pID, $pMeta)->getName();
 		$event->setNewText(new SignText([
-			$shopOwner,
-			"Amount: $saleNum",
-			"Price: ".EconomyAPI::getInstance()->getMonetaryUnit().$price,
-			$productName
+			"§6" . $shopOwner,
+            "§7[§8Anzahl: §b" . $saleNum . "§7]",
+            "§7[§8Preis: §b".EconomyAPI::getInstance()->getMonetaryUnit().$price . "§7]",
+            "§e" . $productName
 		]));
 
 		$this->databaseManager->registerShop($shopOwner, $saleNum, $price, $pID, $pMeta, $sign, $chest);
