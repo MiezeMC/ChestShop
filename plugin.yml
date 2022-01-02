@@ -26,7 +26,7 @@ permissions:
     default: true
     description: "Allows searching item ID"
   chestshop.makeshop.1:
-    default: true
+    default: op
     description: "Allows making 1 chest shop"
   chestshop.makeshop.unlimited:
     default: op
