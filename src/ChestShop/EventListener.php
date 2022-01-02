@@ -15,8 +15,11 @@ use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerInteractEvent;
 use pocketmine\item\ItemFactory;
 use pocketmine\math\Vector3;
-use pocketmine\utils\TextFormat;
 use pocketmine\world\Position;
+use pocketmine\world\sound\AnvilFallSound;
+use pocketmine\world\sound\NoteInstrument;
+use pocketmine\world\sound\NoteSound;
+use pocketmine\world\sound\XpCollectSound;
 
 class EventListener implements Listener
 {
@@ -61,6 +64,7 @@ class EventListener implements Listener
             }
             if ($buyerMoney < $shopInfo['price']) {
                 $player->sendMessage(self::$prefix . "Du hast nicht genügend Geld dafür!");
+                $player->broadcastSound(new AnvilFallSound(), [$player]);
                 return;
             }
             /** @var Chest $chest */
@@ -77,6 +81,7 @@ class EventListener implements Listener
                 $player->sendMessage(self::$prefix . "Dieser Shop ist leer!");
                 if (($p = $this->plugin->getServer()->getPlayerExact($shopInfo['shopOwner'])) !== null) {
                     $p->sendMessage(self::$prefix . "Dein ChestShop ist leer! Aufzufüllendes Item: §e" . ItemFactory::getInstance()->get($pID, $pMeta)->getName());
+                    $p->broadcastSound(new NoteSound(NoteInstrument::BASS_DRUM(), 5), [$p]);
                 }
                 return;
             }
@@ -87,6 +92,7 @@ class EventListener implements Listener
             $sellerMoney = EconomyAPI::getInstance()->myMoney($shopInfo['shopOwner']);
             if (EconomyAPI::getInstance()->reduceMoney($player->getName(), $shopInfo['price'], false, "ChestShop") === EconomyAPI::RET_SUCCESS and EconomyAPI::getInstance()->addMoney($shopInfo['shopOwner'], $shopInfo['price'], false, "ChestShop") === EconomyAPI::RET_SUCCESS) {
                 $player->sendMessage(self::$prefix . "Erfolgreich gekauft!");
+                $player->broadcastSound(new XpCollectSound(), [$player]);
                 if (($p = $this->plugin->getServer()->getPlayerExact($shopInfo['shopOwner'])) !== null) {
                     $p->sendMessage(self::$prefix . "§e{$player->getName()}§7 hat gerade §e" . ItemFactory::getInstance()->get($pID, $pMeta)->getName() . "§7 für §e" . EconomyAPI::getInstance()->getMonetaryUnit() . $shopInfo['price'] . "§7 gekauft!");
                 }
