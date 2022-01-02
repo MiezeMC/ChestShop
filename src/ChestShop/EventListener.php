@@ -3,9 +3,11 @@ declare(strict_types=1);
 namespace ChestShop;
 
 use onebone\economyapi\EconomyAPI;
+use pocketmine\block\BaseSign;
 use pocketmine\block\Block;
 use pocketmine\block\BlockLegacyIds;
 use pocketmine\block\tile\Chest;
+use pocketmine\block\tile\Sign;
 use pocketmine\block\utils\SignText;
 use pocketmine\event\block\BlockBreakEvent;
 use pocketmine\event\block\SignChangeEvent;
@@ -30,91 +32,87 @@ class EventListener implements Listener
 	}
 
 	public function onPlayerInteract(PlayerInteractEvent $event) : void
-	{
-		$block = $event->getBlock();
-		$player = $event->getPlayer();
+    {
+        $block = $event->getBlock();
+        $player = $event->getPlayer();
 
-		switch ($block->getID()) {
-			case BlockLegacyIds::SIGN_POST:
-			case BlockLegacyIds::WALL_SIGN:
-				if (($shopInfo = $this->databaseManager->selectByCondition([
-						"signX" => $block->getPosition()->getX(),
-						"signY" => $block->getPosition()->getY(),
-						"signZ" => $block->getPosition()->getZ()
-					])) === false) return;
-				$shopInfo = $shopInfo->fetchArray(SQLITE3_ASSOC);
-				if($shopInfo === false)
-					return;
-				if ($shopInfo['shopOwner'] === $player->getName()) {
-					$player->sendMessage(self::$prefix . "§cDu kannst nichts aus deinem eigenen Shop kaufen!");
-					return;
-				}else{
-					$event->cancel();
-				}
-				$buyerMoney = EconomyAPI::getInstance()->myMoney($player->getName());
-				if ($buyerMoney === false) {
-					$player->sendMessage(self::$prefix . "§4FEHLER! Dein Geld konnte nicht abgerufen werden! §r[Fehlercode: CS-01]");
-					return;
-				}
-				if ($buyerMoney < $shopInfo['price']) {
-					$player->sendMessage(self::$prefix . "Du hast nicht genügend Geld dafür!");
-					return;
-				}
-				/** @var Chest $chest */
-				$chest = $player->getWorld()->getTile(new Vector3($shopInfo['chestX'], $shopInfo['chestY'], $shopInfo['chestZ']));
-				$itemNum = 0;
-				$pID = $shopInfo['productID'];
-				$pMeta = $shopInfo['productMeta'];
-				for ($i = 0; $i < $chest->getInventory()->getSize(); $i++) {
-					$item = $chest->getInventory()->getItem($i);
-					// use getDamage() method to get metadata of item
-					if ($item->getID() === $pID and $item->getMeta() === $pMeta) $itemNum += $item->getCount();
-				}
-				if ($itemNum < $shopInfo['saleNum']) {
-					$player->sendMessage(self::$prefix . "Dieser Shop ist leer!");
-					if (($p = $this->plugin->getServer()->getPlayerExact($shopInfo['shopOwner'])) !== null) {
-						$p->sendMessage(self::$prefix . "Dein ChestShop ist leer! Aufzufüllendes Item: §e".ItemFactory::getInstance()->get($pID, $pMeta)->getName());
-					}
-					return;
-				}
+        /*switch ($block->getID()) {
+            case BlockLegacyIds::SIGN_POST:
+            case BlockLegacyIds::WALL_SIGN:*/
+        if ($block->getId() == BlockLegacyIds::SIGN_POST || $block->getId() == BlockLegacyIds::WALL_SIGN || $block instanceof Sign || $block instanceof BaseSign) {
+            if (($shopInfo = $this->databaseManager->selectByCondition([
+                    "signX" => $block->getPosition()->getX(),
+                    "signY" => $block->getPosition()->getY(),
+                    "signZ" => $block->getPosition()->getZ()
+                ])) === false) return;
+            $shopInfo = $shopInfo->fetchArray(SQLITE3_ASSOC);
+            if ($shopInfo === false)
+                return;
+            if ($shopInfo['shopOwner'] === $player->getName()) {
+                $player->sendMessage(self::$prefix . "§cDu kannst nichts aus deinem eigenen Shop kaufen!");
+                return;
+            } else {
+                $event->cancel();
+            }
+            $buyerMoney = EconomyAPI::getInstance()->myMoney($player->getName());
+            if ($buyerMoney === false) {
+                $player->sendMessage(self::$prefix . "§4FEHLER! Dein Geld konnte nicht abgerufen werden! §r[Fehlercode: CS-01]");
+                return;
+            }
+            if ($buyerMoney < $shopInfo['price']) {
+                $player->sendMessage(self::$prefix . "Du hast nicht genügend Geld dafür!");
+                return;
+            }
+            /** @var Chest $chest */
+            $chest = $player->getWorld()->getTile(new Vector3($shopInfo['chestX'], $shopInfo['chestY'], $shopInfo['chestZ']));
+            $itemNum = 0;
+            $pID = $shopInfo['productID'];
+            $pMeta = $shopInfo['productMeta'];
+            for ($i = 0; $i < $chest->getInventory()->getSize(); $i++) {
+                $item = $chest->getInventory()->getItem($i);
+                // use getDamage() method to get metadata of item
+                if ($item->getID() === $pID and $item->getMeta() === $pMeta) $itemNum += $item->getCount();
+            }
+            if ($itemNum < $shopInfo['saleNum']) {
+                $player->sendMessage(self::$prefix . "Dieser Shop ist leer!");
+                if (($p = $this->plugin->getServer()->getPlayerExact($shopInfo['shopOwner'])) !== null) {
+                    $p->sendMessage(self::$prefix . "Dein ChestShop ist leer! Aufzufüllendes Item: §e" . ItemFactory::getInstance()->get($pID, $pMeta)->getName());
+                }
+                return;
+            }
 
-				$item = ItemFactory::getInstance()->get((int)$shopInfo['productID'], (int)$shopInfo['productMeta'], (int)$shopInfo['saleNum']);
-				$chest->getInventory()->removeItem($item);
-				$player->getInventory()->addItem($item);
-				$sellerMoney = EconomyAPI::getInstance()->myMoney($shopInfo['shopOwner']);
-				if(EconomyAPI::getInstance()->reduceMoney($player->getName(), $shopInfo['price'], false, "ChestShop") === EconomyAPI::RET_SUCCESS and EconomyAPI::getInstance()->addMoney($shopInfo['shopOwner'], $shopInfo['price'], false, "ChestShop") === EconomyAPI::RET_SUCCESS) {
-					$player->sendMessage(self::$prefix . "Erfolgreich gekauft!");
-					if (($p = $this->plugin->getServer()->getPlayerExact($shopInfo['shopOwner'])) !== null) {
-						$p->sendMessage(self::$prefix . "§e{$player->getName()}§7 hat gerade §e".ItemFactory::getInstance()->get($pID, $pMeta)->getName()."§7 für §e".EconomyAPI::getInstance()->getMonetaryUnit().$shopInfo['price'] . "§7 gekauft!");
-					}
-				}else{
-					$player->getInventory()->removeItem($item);
-					$chest->getInventory()->addItem($item);
-					EconomyAPI::getInstance()->setMoney($player->getName(), $buyerMoney);
-					EconomyAPI::getInstance()->setMoney($shopInfo['shopOwner'], $sellerMoney);
-					$player->sendMessage(self::$prefix . "§4FEHLER! Vorgang fehlgeschlagen! §r[Fehlercode: CS-02]");
-				}
-				break;
+            $item = ItemFactory::getInstance()->get((int)$shopInfo['productID'], (int)$shopInfo['productMeta'], (int)$shopInfo['saleNum']);
+            $chest->getInventory()->removeItem($item);
+            $player->getInventory()->addItem($item);
+            $sellerMoney = EconomyAPI::getInstance()->myMoney($shopInfo['shopOwner']);
+            if (EconomyAPI::getInstance()->reduceMoney($player->getName(), $shopInfo['price'], false, "ChestShop") === EconomyAPI::RET_SUCCESS and EconomyAPI::getInstance()->addMoney($shopInfo['shopOwner'], $shopInfo['price'], false, "ChestShop") === EconomyAPI::RET_SUCCESS) {
+                $player->sendMessage(self::$prefix . "Erfolgreich gekauft!");
+                if (($p = $this->plugin->getServer()->getPlayerExact($shopInfo['shopOwner'])) !== null) {
+                    $p->sendMessage(self::$prefix . "§e{$player->getName()}§7 hat gerade §e" . ItemFactory::getInstance()->get($pID, $pMeta)->getName() . "§7 für §e" . EconomyAPI::getInstance()->getMonetaryUnit() . $shopInfo['price'] . "§7 gekauft!");
+                }
+            } else {
+                $player->getInventory()->removeItem($item);
+                $chest->getInventory()->addItem($item);
+                EconomyAPI::getInstance()->setMoney($player->getName(), $buyerMoney);
+                EconomyAPI::getInstance()->setMoney($shopInfo['shopOwner'], $sellerMoney);
+                $player->sendMessage(self::$prefix . "§4FEHLER! Vorgang fehlgeschlagen! §r[Fehlercode: CS-02]");
+            }
+        }
 
-			case BlockLegacyIds::CHEST:
-				$shopInfo = $this->databaseManager->selectByCondition([
-					"chestX" => $block->getPosition()->getX(),
-					"chestY" => $block->getPosition()->getY(),
-					"chestZ" => $block->getPosition()->getZ()
-				]);
-				if($shopInfo === false)
-					break;
-				$shopInfo = $shopInfo->fetchArray(SQLITE3_ASSOC);
-				if ($shopInfo !== false and $shopInfo['shopOwner'] !== $player->getName() and !$player->hasPermission("chestshop.admin")) {
-					$player->sendMessage(self::$prefix . "§cDiese Kiste ist geschützt!");
-					$event->cancel();
-				}
-				break;
-
-			default:
-				break;
-		}
-	}
+        if ($block->getId() == BlockLegacyIds::CHEST) {
+            $shopInfo = $this->databaseManager->selectByCondition([
+                "chestX" => $block->getPosition()->getX(),
+                "chestY" => $block->getPosition()->getY(),
+                "chestZ" => $block->getPosition()->getZ()
+            ]);
+            if ($shopInfo === false) return;
+            $shopInfo = $shopInfo->fetchArray(SQLITE3_ASSOC);
+            if ($shopInfo !== false and $shopInfo['shopOwner'] !== $player->getName() and !$player->hasPermission("chestshop.admin")) {
+                $player->sendMessage(self::$prefix . "§cDiese Kiste ist geschützt!");
+                $event->cancel();
+            }
+        }
+    }
 
 	public function onPlayerBreakBlock(BlockBreakEvent $event) : void
 	{

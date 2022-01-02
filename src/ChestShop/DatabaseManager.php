@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace ChestShop;
 
+use pocketmine\block\BaseSign;
 use pocketmine\block\Block;
 
 class DatabaseManager
@@ -31,8 +32,8 @@ class DatabaseManager
 	public function registerShop(string $shopOwner, int $saleNum, int $price, int $productID, int $productMeta, Block $sign, Block $chest) : bool
 	{
 		return $this->database->exec("INSERT OR REPLACE INTO ChestShop (id, shopOwner, saleNum, price, productID, productMeta, signX, signY, signZ, chestX, chestY, chestZ) VALUES
-			((SELECT id FROM ChestShop WHERE signX = $sign->x AND signY = $sign->y AND signZ = $sign->z),
-			'$shopOwner', $saleNum, $price, $productID, $productMeta, $sign->x, $sign->y, $sign->z, $chest->x, $chest->y, $chest->z)");
+			((SELECT id FROM ChestShop WHERE signX = $sign->getPosition()->x AND signY = $sign->getPosition()->y AND signZ = $sign->getPosition()->z),
+			'$shopOwner', $saleNum, $price, $productID, $productMeta, $sign->getPosition()->x, $sign->getPosition()->y, $sign->getPosition()->z, $chest->getPosition()->x, $chest->getPosition()->y, $chest->getPosition()->z)");
 	}
 
 	public function selectByCondition(array $condition) : bool|\SQLite3Result
