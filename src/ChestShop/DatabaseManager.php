@@ -31,9 +31,11 @@ class DatabaseManager
 
 	public function registerShop(string $shopOwner, int $saleNum, int $price, int $productID, int $productMeta, Block $sign, Block $chest) : bool
 	{
+        $signPos = $sign->getPosition();
+        $chestPos = $chest->getPosition();
 		return $this->database->exec("INSERT OR REPLACE INTO ChestShop (id, shopOwner, saleNum, price, productID, productMeta, signX, signY, signZ, chestX, chestY, chestZ) VALUES
-			((SELECT id FROM ChestShop WHERE signX = $sign->getPosition()->x AND signY = $sign->getPosition()->y AND signZ = $sign->getPosition()->z),
-			'$shopOwner', $saleNum, $price, $productID, $productMeta, $sign->getPosition()->x, $sign->getPosition()->y, $sign->getPosition()->z, $chest->getPosition()->x, $chest->getPosition()->y, $chest->getPosition()->z)");
+			((SELECT id FROM ChestShop WHERE signX = $signPos->x AND signY = $signPos->y AND signZ = $signPos->z),
+			'$shopOwner', $saleNum, $price, $productID, $productMeta, $signPos->x, $signPos->y, $signPos->z, $chestPos->x, $chestPos->y, $chestPos->z)");
 	}
 
 	public function selectByCondition(array $condition) : bool|\SQLite3Result

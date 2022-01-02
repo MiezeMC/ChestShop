@@ -115,55 +115,50 @@ class EventListener implements Listener
     }
 
 	public function onPlayerBreakBlock(BlockBreakEvent $event) : void
-	{
-		$block = $event->getBlock();
-		$player = $event->getPlayer();
+    {
+        $block = $event->getBlock();
+        $player = $event->getPlayer();
 
-		switch ($block->getID()) {
-			case BlockLegacyIds::SIGN_POST:
-			case BlockLegacyIds::WALL_SIGN:
-				$condition = [
-					"signX" => $block->getPosition()->getX(),
-					"signY" => $block->getPosition()->getY(),
-					"signZ" => $block->getPosition()->getZ()
-				];
-				$shopInfo = $this->databaseManager->selectByCondition($condition);
-				if ($shopInfo !== false) {
-					$shopInfo = $shopInfo->fetchArray();
-					if($shopInfo === false)
-						break;
-					if ($shopInfo['shopOwner'] !== $player->getName() and !$player->hasPermission("chestshop.admin")) {
-						$player->sendMessage(self::$prefix . "§cDieses Schild ist geschützt!");
-						$event->cancel();
-					} else {
-						$this->databaseManager->deleteByCondition($condition);
-						$player->sendMessage(self::$prefix . "ChestShop erfolgreich abgebaut!");
-					}
-				}
-				break;
+        if ($block->getId() == BlockLegacyIds::SIGN_POST || $block->getId() == BlockLegacyIds::WALL_SIGN || $block instanceof Sign || $block instanceof BaseSign) {
+            $condition = [
+                "signX" => $block->getPosition()->getX(),
+                "signY" => $block->getPosition()->getY(),
+                "signZ" => $block->getPosition()->getZ()
+            ];
+            $shopInfo = $this->databaseManager->selectByCondition($condition);
+            if ($shopInfo !== false) {
+                $shopInfo = $shopInfo->fetchArray();
+                if ($shopInfo === false) return;
+                if ($shopInfo['shopOwner'] !== $player->getName() and !$player->hasPermission("chestshop.admin")) {
+                    $player->sendMessage(self::$prefix . "§cDieses Schild ist geschützt!");
+                    $event->cancel();
+                } else {
+                    $this->databaseManager->deleteByCondition($condition);
+                    $player->sendMessage(self::$prefix . "ChestShop erfolgreich abgebaut!");
+                }
+            }
+        }
 
-			case BlockLegacyIds::CHEST:
-				$condition = [
-					"chestX" => $block->getPosition()->getX(),
-					"chestY" => $block->getPosition()->getY(),
-					"chestZ" => $block->getPosition()->getZ()
-				];
-				$shopInfo = $this->databaseManager->selectByCondition($condition);
-				if ($shopInfo !== false) {
-					$shopInfo = $shopInfo->fetchArray();
-					if($shopInfo === false)
-						break;
-					if ($shopInfo['shopOwner'] !== $player->getName() and !$player->hasPermission("chestshop.admin")) {
-						$player->sendMessage(self::$prefix . "§cDiese Kiste ist geschützt!");
-						$event->cancel();
-					} else {
-						$this->databaseManager->deleteByCondition($condition);
-						$player->sendMessage(self::$prefix . "ChestShop erfolgreich abgebaut!");
-					}
-				}
-				break;
-		}
-	}
+        if ($block->getId() == BlockLegacyIds::CHEST) {
+            $condition = [
+                "chestX" => $block->getPosition()->getX(),
+                "chestY" => $block->getPosition()->getY(),
+                "chestZ" => $block->getPosition()->getZ()
+            ];
+            $shopInfo = $this->databaseManager->selectByCondition($condition);
+            if ($shopInfo !== false) {
+                $shopInfo = $shopInfo->fetchArray();
+                if ($shopInfo === false) return;
+                if ($shopInfo['shopOwner'] !== $player->getName() and !$player->hasPermission("chestshop.admin")) {
+                    $player->sendMessage(self::$prefix . "§cDiese Kiste ist geschützt!");
+                    $event->cancel();
+                } else {
+                    $this->databaseManager->deleteByCondition($condition);
+                    $player->sendMessage(self::$prefix . "ChestShop erfolgreich abgebaut!");
+                }
+            }
+        }
+    }
 
 	public function onSignChange(SignChangeEvent $event) : void
 	{
