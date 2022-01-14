@@ -43,6 +43,9 @@ class EventListener implements Listener
             case BlockLegacyIds::SIGN_POST:
             case BlockLegacyIds::WALL_SIGN:*/
         if ($block->getId() == BlockLegacyIds::SIGN_POST || $block->getId() == BlockLegacyIds::WALL_SIGN || $block instanceof Sign || $block instanceof BaseSign) {
+
+            if ($event->getAction() === PlayerInteractEvent::LEFT_CLICK_BLOCK && $player->isSneaking()) return;
+
             if (($shopInfo = $this->databaseManager->selectByCondition([
                     "signX" => $block->getPosition()->getX(),
                     "signY" => $block->getPosition()->getY(),
